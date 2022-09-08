@@ -70,8 +70,10 @@ class graph_data():
         hospSIMPLIFICADO = self._create_ghost_hosp(hospSIMPLIFICADO)
 
         patDfSIMPLIFICADO = patDf.merge(encodingDf,how='inner',on='DIAG_PRINC')
-        patDfSIMPLIFICADO['MED_PERM'] = 1
-        hospSIMPLIFICADO['QTD_RELEASE'] = 0
+        #patDfSIMPLIFICADO['MED_PERM'] = 1
+        #hospSIMPLIFICADO['QTD_RELEASE'] = 0
+        hospSIMPLIFICADO['QTD_ACU'] = hospSIMPLIFICADO['QTD_ACU'] + 500  # nao pode ter release > qtd inicial para nenhuma combinação !!!
+        hospSIMPLIFICADO['QT_SUS'] = 99999 # tem que garantir aqui q tenha capacidade inicial = quantidade inicial
         patDfSIMPLIFICADO.drop(columns='DIAG_PRINC',inplace=True)
         ####
 
@@ -81,20 +83,20 @@ class graph_data():
 
         #### Super simplificacoes (velocidade)############################:
 
-        topNHos = hospSIMPLIFICADO.groupby(by=['CNES']).agg({'QT_SUS':'sum'}).reset_index()
-        topNHos.sort_values(by=['QT_SUS'],inplace=True,ascending=False)
-        topNHos = topNHos['CNES'][:7]
+        #topNHos = hospSIMPLIFICADO.groupby(by=['CNES']).agg({'QT_SUS':'sum'}).reset_index()
+        #topNHos.sort_values(by=['QT_SUS'],inplace=True,ascending=False)
+        #topNHos = topNHos['CNES'][:7]
 
-        hospSIMPLIFICADO=hospSIMPLIFICADO[hospSIMPLIFICADO['CNES'].isin(topNHos)]
+        #hospSIMPLIFICADO=hospSIMPLIFICADO[hospSIMPLIFICADO['CNES'].isin(topNHos)]
 
-        topNPac = patDfSIMPLIFICADO.groupby(by=['MUNIC_RES']).agg({'QTY':'sum'}).reset_index()
-        topNPac.sort_values(by=['QTY'],inplace=True,ascending=False)
-        topNPac = topNPac['MUNIC_RES'][:7]
+        #topNPac = patDfSIMPLIFICADO.groupby(by=['MUNIC_RES']).agg({'QTY':'sum'}).reset_index()
+        #topNPac.sort_values(by=['QTY'],inplace=True,ascending=False)
+        #topNPac = topNPac['MUNIC_RES'][:7]
 
-        patDfSIMPLIFICADO=patDfSIMPLIFICADO[patDfSIMPLIFICADO['MUNIC_RES'].isin(topNPac)]
+        #patDfSIMPLIFICADO=patDfSIMPLIFICADO[patDfSIMPLIFICADO['MUNIC_RES'].isin(topNPac)]
 
-        odDf=odDf[odDf['MUNIC_RES'].isin(patDfSIMPLIFICADO['MUNIC_RES'])]
-        odDf=odDf[odDf['CNES'].isin(hospSIMPLIFICADO['CNES'])]
+        #odDf=odDf[odDf['MUNIC_RES'].isin(patDfSIMPLIFICADO['MUNIC_RES'])]
+        #odDf=odDf[odDf['CNES'].isin(hospSIMPLIFICADO['CNES'])]
 
         ##################################################################
 
