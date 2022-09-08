@@ -31,7 +31,7 @@ def noPatN(p,h,t):
     if t == initialTime:
         return InitPatientsph.get((p,h),0) + sum([model.x[p,a,h,initialTime] for a in areaIdList])
 
-    elif time_delta(t,-LOSp.get((p),0)) > initialTime:
+    elif time_delta(t,-LOSp.get((p),0)) >= initialTime:
         return noPatN(p,h,time_delta(t,-1)) + sum([model.x[p,a,h,t] for a in areaIdList]) - \
                sum([model.x[p,a,h,time_delta(t,-LOSp.get((p),0))]  for a in areaIdList]) - \
                releasePatientspht.get((p,h,t),0)
@@ -39,6 +39,7 @@ def noPatN(p,h,t):
         return noPatN(p,h,time_delta(t,-1)) + sum([model.x[p,a,h,t] for a in areaIdList]) - \
                0 - \
                releasePatientspht.get((p,h,t),0)
+               #no lugar de -model.x[p,a,h,t-los], usa a base real, um valor escalar e nao variavel.
 
 model.noPattN = pyo.ConstraintList() #(3,4) do artigo, quantidade de pacientes no instante t é igual ao pacientes t-1 + alocao atual.
 for p in patTypeList:
@@ -72,6 +73,6 @@ if 'ok' == str(results.Solver.status):
             for h in hosIdList:
                 for a in areaIdList:
                     if model.x[p,a,h,t]() > 0:
-                        print(f"At day {t} patient type {p} to hospital {h} from area {a} : {model.x[p,a,h,t]()} | NoPatients pht: {model.y[p,h,t]()} | custo: {Distanceah.get((a,h),0)*model.x[p,a,h,t]()} | capacity: {CONCapacityrh.get((p,h),0)} | demanda: {Demandpat.get((p,a,t),0)}")
+                        print(f"At day {t} patient type {p} to hospital {h} from area {a} : {model.x[p,a,h,t]()} | NoPatients pht: {model.y[p,h,t]()} | Debug: {noPatN(p,h,t)()}| custo: {round(Distanceah.get((a,h),0)*model.x[p,a,h,t](),2)} | capacity: {CONCapacityrh.get((p,h),0)} | demanda: {Demandpat.get((p,a,t),0)}")
 else:
     print("No Valid Solution Found")
