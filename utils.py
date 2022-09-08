@@ -1,4 +1,17 @@
 from math import sin, cos, sqrt, atan2, radians
+from datetime import datetime, timedelta
+
+def time_delta(int_time:int,delta:int) -> int:
+
+    '''Only accepts date in format 20211201 as a integer. positive delta indicates
+    that is a sum, negative delta indicates that is a subtraction'''
+
+    int_time = datetime.strptime(str(int_time), '%Y%m%d')
+
+    int_time = int_time + timedelta(days = int(delta))
+
+
+    return int_time.year*10000 + int_time.month*100 + int_time.day*1
 
 def distance_latLong(lat1,lon1,lat2,lon2):
 
@@ -19,4 +32,3 @@ def distance_latLong(lat1,lon1,lat2,lon2):
     distance = R * c
 
     return distance
-

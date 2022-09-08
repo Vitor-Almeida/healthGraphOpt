@@ -5,10 +5,6 @@ class graph_data():
 
     def __init__(self):
 
-        #N_AIH,UF_ZI,ESPEC,ANO_CMPT,MES_CMPT,MUNIC_RES,NASC,SEXO,DT_INTER,DT_SAIDA,DIAG_PRINC,DIAG_SECUN,MUNIC_MOV,IDADE,MORTE,UTI_MES_TO,MARCA_UTI,
-        #PROC_SOLIC,PROC_REA,HOMINIMO,CID_ASSO,CID_MORTE,COMPLEX,MARCA_UCI,DIAGSEC1,TPDISEC1,DIAGSEC2,TPDISEC2
-
-
         dfdHospital = pd.read_csv('/home/jaco/Projetos/healthGraphOpt/data/dHospital.csv')
         dfmOD = pd.read_csv('/home/jaco/Projetos/healthGraphOpt/data/mOD.csv')
         dffPaciente = pd.read_csv('/home/jaco/Projetos/healthGraphOpt/data/fPaciente.csv')

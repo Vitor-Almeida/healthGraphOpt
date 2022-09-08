@@ -9,6 +9,7 @@
 *.props
 commercial_solvers_bin/
 data/
+backup/
 excel/
 ############
 todo.txt

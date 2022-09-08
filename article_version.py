@@ -1,14 +1,23 @@
 import pyomo.environ as pyo
-from utils import time_delta
-from load_data import load_data
+from data import graph_data
 
-initialTime=20210101
-durationTime=7
-
-patTypeList,areaIdList,hosIdList,equipTypeList,tList,Demandpat,CONCapacityrh,InitPatientsph,releasePatientspht,LOSp,Distanceah = load_data(initialTime,durationTime)
+data = graph_data()
+Demandpat = data.Demandpat
+CONCapacityrh  = data.CONCapacityrh
+InitPatientsph  = data.InitPatientsph
+releasePatientsph  = data.releasePatientsph
+LOSp = data.LOSp
+Distanceah = data.Distanceah
 
 model = pyo.ConcreteModel()
 model.dual = pyo.Suffix(direction=pyo.Suffix.IMPORT)
+
+# Step 1: Define index sets
+patTypeList = data.patTypeList
+equipTypeList = data.equipIdList
+areaIdList = data.areaIdList
+hosIdList = data.hosIdList
+tList = data.tList
 
 # Step 2: Define the decision 
 model.x = pyo.Var(patTypeList, areaIdList, hosIdList, tList, domain = pyo.PositiveReals) # (6)
@@ -24,21 +33,20 @@ model.demand = pyo.ConstraintList() #(2) do artigo, quantidade de solucoes por t
 for p in patTypeList:
     for a in areaIdList:
         for t in tList:
-            model.demand.add(sum([model.x[p,a,h,t] for h in hosIdList]) == Demandpat.get((p,a,t),0))
+            model.demand.add(sum([model.x[p,a,h,t] for h in hosIdList]) == Demandpat[p,a,t] )
 
 def noPatN(p,h,t):
 
-    if t == initialTime:
-        return InitPatientsph.get((p,h),0) + sum([model.x[p,a,h,initialTime] for a in areaIdList])
-
-    elif time_delta(t,-LOSp.get((p),0)) > initialTime:
-        return noPatN(p,h,time_delta(t,-1)) + sum([model.x[p,a,h,t] for a in areaIdList]) - \
-               sum([model.x[p,a,h,time_delta(t,-LOSp.get((p),0))]  for a in areaIdList]) - \
-               releasePatientspht.get((p,h,t),0)
+    if t == 0:
+        return InitPatientsph[p,h] + sum([model.x[p,a,h,0] for a in areaIdList])
+    elif t - LOSp[p] >= 0:
+        return noPatN(p,h,t-1) + sum([model.x[p,a,h,t] for a in areaIdList]) - \
+               sum([model.x[p,a,h,t- LOSp[p]]  for a in areaIdList]) - \
+               releasePatientsph[p,h]
     else:
-        return noPatN(p,h,time_delta(t,-1)) + sum([model.x[p,a,h,t] for a in areaIdList]) - \
-               0 - \
-               releasePatientspht.get((p,h,t),0)
+        return noPatN(p,h,t-1) + sum([model.x[p,a,h,t] for a in areaIdList]) - \
+        0 - \
+        releasePatientsph[p,h]
 
 model.noPattN = pyo.ConstraintList() #(3,4) do artigo, quantidade de pacientes no instante t é igual ao pacientes t-1 + alocao atual.
 for p in patTypeList:
@@ -47,9 +55,10 @@ for p in patTypeList:
             model.noPattN.add(model.y[p,h,t] == noPatN(p,h,t))
 
 model.equipLimit = pyo.ConstraintList() #(5) do artigo, quantidade de pacientes nao pode ser maior que a quantidade de equipamentos.
+
 for r in equipTypeList:
     for h in hosIdList:
-            model.equipLimit.add(sum([model.y[r,h,t] for t in tList]) <= CONCapacityrh.get((r,h),0))
+            model.equipLimit.add(sum([model.y[r,h,t] for t in tList]) <= CONCapacityrh[r,h])
 
 #precisa? x ja foi definido como real nao negativo la em cima.
 model.positivo = pyo.ConstraintList() #(6) do artigo, alocação precisa ser positiva
@@ -72,6 +81,6 @@ if 'ok' == str(results.Solver.status):
             for h in hosIdList:
                 for a in areaIdList:
                     if model.x[p,a,h,t]() > 0:
-                        print(f"At day {t} patient type {p} to hospital {h} from area {a} : {model.x[p,a,h,t]()} | NoPatients pht: {model.y[p,h,t]()} | custo: {Distanceah.get((a,h),0)*model.x[p,a,h,t]()} | capacity: {CONCapacityrh.get((p,h),0)} | demanda: {Demandpat.get((p,a,t),0)}")
+                        print(f"At day {t} patient type {p} to hospital {h} from area {a} : {model.x[p,a,h,t]()} | NoPatients pht: {model.y[p,h,t]()} | custo: {Distanceah[a,h]*model.x[p,a,h,t]()} | capacity: {CONCapacityrh[p,h]} | demanda: {Demandpat[p,a,t]}")
 else:
     print("No Valid Solution Found")
