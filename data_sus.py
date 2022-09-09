@@ -5,6 +5,21 @@ from utils import distance_latLong, time_delta
 import itertools
 import pickle
 
+
+def fix_initial_cap(row):
+
+    if row['CNES'] != 0 :
+        if row['QT_SUS'] <= row['QTD_ACU']+row['RELEASE_MAX']: #row['RELEASE_MAX'] nao tava precisando
+            row['QT_SUS'] = row['QTD_ACU']+row['RELEASE_MAX']
+
+    #if row['CNES'] != 0 :
+    #    row['QT_SUS'] = 1235
+
+    #if row['CNES'] == 6848710:
+    #    row['QT_SUS'] = 140
+
+    return row
+
 class graph_data():
 
     def __init__(self,initialTime,durationTime):
@@ -70,35 +85,49 @@ class graph_data():
         hospSIMPLIFICADO = self._create_ghost_hosp(hospSIMPLIFICADO)
 
         patDfSIMPLIFICADO = patDf.merge(encodingDf,how='inner',on='DIAG_PRINC')
-        #patDfSIMPLIFICADO['MED_PERM'] = 1
-        #hospSIMPLIFICADO['QTD_RELEASE'] = 0
-        hospSIMPLIFICADO['QTD_ACU'] = hospSIMPLIFICADO['QTD_ACU'] + 500  # nao pode ter release > qtd inicial para nenhuma combinação !!!
-        hospSIMPLIFICADO['QT_SUS'] = 99999 # tem que garantir aqui q tenha capacidade inicial = quantidade inicial
         patDfSIMPLIFICADO.drop(columns='DIAG_PRINC',inplace=True)
-        ####
 
         odDf=odDf[odDf['MUNIC_RES'].isin(patDfSIMPLIFICADO['MUNIC_RES'])]
         odDf=odDf[odDf['CNES'].isin(hospSIMPLIFICADO['CNES'])]
 
+        #### Super simplificacoes (redução do tam)############################:
 
-        #### Super simplificacoes (velocidade)############################:
+        topNHos = hospSIMPLIFICADO.groupby(by=['CNES']).agg({'QT_SUS':'sum'}).reset_index()
+        topNHos.sort_values(by=['QT_SUS'],inplace=True,ascending=False)
+        topNHos = topNHos['CNES'][:7]
 
-        #topNHos = hospSIMPLIFICADO.groupby(by=['CNES']).agg({'QT_SUS':'sum'}).reset_index()
-        #topNHos.sort_values(by=['QT_SUS'],inplace=True,ascending=False)
-        #topNHos = topNHos['CNES'][:7]
+        hospSIMPLIFICADO=hospSIMPLIFICADO[hospSIMPLIFICADO['CNES'].isin(topNHos)]
 
-        #hospSIMPLIFICADO=hospSIMPLIFICADO[hospSIMPLIFICADO['CNES'].isin(topNHos)]
+        topNPac = patDfSIMPLIFICADO.groupby(by=['MUNIC_RES']).agg({'QTY':'sum'}).reset_index()
+        topNPac.sort_values(by=['QTY'],inplace=True,ascending=False)
+        topNPac = topNPac['MUNIC_RES'][:7]
 
-        #topNPac = patDfSIMPLIFICADO.groupby(by=['MUNIC_RES']).agg({'QTY':'sum'}).reset_index()
-        #topNPac.sort_values(by=['QTY'],inplace=True,ascending=False)
-        #topNPac = topNPac['MUNIC_RES'][:7]
+        patDfSIMPLIFICADO=patDfSIMPLIFICADO[patDfSIMPLIFICADO['MUNIC_RES'].isin(topNPac)]
 
-        #patDfSIMPLIFICADO=patDfSIMPLIFICADO[patDfSIMPLIFICADO['MUNIC_RES'].isin(topNPac)]
-
-        #odDf=odDf[odDf['MUNIC_RES'].isin(patDfSIMPLIFICADO['MUNIC_RES'])]
-        #odDf=odDf[odDf['CNES'].isin(hospSIMPLIFICADO['CNES'])]
+        odDf=odDf[odDf['MUNIC_RES'].isin(patDfSIMPLIFICADO['MUNIC_RES'])]
+        odDf=odDf[odDf['CNES'].isin(hospSIMPLIFICADO['CNES'])]
 
         ##################################################################
+
+        #### correções ####################################################
+
+        #patDfSIMPLIFICADO['MED_PERM'] = 1
+        #hospSIMPLIFICADO['QTD_RELEASE'] = 0
+
+        relSum = hospSIMPLIFICADO.groupby(by=['CNES','TP_LEITO']).agg({'QTD_RELEASE':'sum'}).reset_index()
+        relSum.rename(columns={'QTD_RELEASE':'RELEASE_MAX'},inplace=True)
+        hospSIMPLIFICADO = hospSIMPLIFICADO.merge(relSum,how='left',left_on=['CNES','TP_LEITO'],right_on=['CNES','TP_LEITO'])
+
+        hospSIMPLIFICADO = hospSIMPLIFICADO.apply(fix_initial_cap,axis=1) #ajustando para capacidade inicial >= pat inicial + release do periodo
+        hospSIMPLIFICADO.drop(columns=['RELEASE_MAX'],inplace=True)
+
+        #hospSIMPLIFICADO['QTD_ACU'] = hospSIMPLIFICADO['QTD_ACU'] + 500  # nao pode ter releasett > qtd inicial para nenhuma combinação !!!
+        #hospSIMPLIFICADO['QT_SUS'] = 99999 # tem que garantir aqui q tenha capacidade inicial >= demanda inicial
+
+        ##################################################################
+
+        #hospSIMPLIFICADO.to_csv('cu3.csv')
+        #patDfSIMPLIFICADO.to_csv('demanda.csv')
 
         #fazer df com o grafo real
         #olhar os filtros, colunas, pedir pra epdimo olhar os conjutos de doença e equipamento.
@@ -130,7 +159,7 @@ class graph_data():
         self.areaIdList = patDfSIMPLIFICADO['MUNIC_RES'].drop_duplicates().tolist()
         self.hosIdList = hospSIMPLIFICADO['CNES'].drop_duplicates().tolist()
 
-        self.tList = [time_delta(self.initialTime,n) for n in range(self.durationTime)]
+        self.tList = [time_delta(self.initialTime,+n) for n in range(self.durationTime)]
 
         self.Demandpat = {index:row['QTY'] for index, row in dffDemanda.iterrows()}
 
@@ -194,7 +223,7 @@ class graph_data():
         ghostDfNP2d = []
 
         for n in prods:
-            ghostDfNP2d.append([n[0],n[1],9999999,0,0,0,0,0,0])
+            ghostDfNP2d.append([n[0],n[1],99999999,0,0,0,0,0,0])
 
         dfFantasma = pd.DataFrame(ghostDfNP2d,columns=['DATA','TP_LEITO','QT_SUS','CNES','QTD_POS','QTD_NEG','QTD_NET','QTD_ACU','QTD_RELEASE'])
         #dfFantasma['DATA'] = dfFantasma['DATA'].astype(int)
@@ -228,6 +257,8 @@ class graph_data():
         hospDf = hospDf.merge(equipDf,how='left',on=['TP_LEITO','CNES'])
         hospDf['QT_SUS'] = hospDf['QT_SUS'].fillna(0)
         hospDf['QT_SUS'] = hospDf['QT_SUS'].astype(int)
+
+        hospDf = hospDf[hospDf['QT_SUS']>0]
 
         return hospDf,encodingDf
 

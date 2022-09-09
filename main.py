@@ -1,6 +1,7 @@
 import pyomo.environ as pyo
 from utils import time_delta
 from load_data import load_data
+import pandas as pd
 
 initialTime=20210101
 durationTime=7
@@ -39,10 +40,10 @@ def noPatN(p,h,t):
         return noPatN(p,h,time_delta(t,-1)) + sum([model.x[p,a,h,t] for a in areaIdList]) - \
                0 - \
                releasePatientspht.get((p,h,t),0)
-               #no lugar de -model.x[p,a,h,t-los], usa a base real, um valor escalar e nao variavel.
+               #no lugar de -model.x[p,a,h,t-los], usa a base real, um valor escalar e nao variavel dentro do ultimo else.
 
 model.noPattN = pyo.ConstraintList() #(3,4) do artigo, quantidade de pacientes no instante t é igual ao pacientes t-1 + alocao atual.
-for p in patTypeList:
+for p in patTypeList: 
     for h in hosIdList:
         for t in tList:
             model.noPattN.add(model.y[p,h,t] == noPatN(p,h,t))
@@ -50,19 +51,23 @@ for p in patTypeList:
 model.equipLimit = pyo.ConstraintList() #(5) do artigo, quantidade de pacientes nao pode ser maior que a quantidade de equipamentos.
 for r in equipTypeList:
     for h in hosIdList:
-            model.equipLimit.add(sum([model.y[r,h,t] for t in tList]) <= CONCapacityrh.get((r,h),0))
+        for t in tList:
+            model.equipLimit.add(model.y[r,h,t] <= CONCapacityrh.get((r,h),0))
 
 #precisa? x ja foi definido como real nao negativo la em cima.
 model.positivo = pyo.ConstraintList() #(6) do artigo, alocação precisa ser positiva
 model.positivo.add(sum([model.x[p,a,h,t] for p in patTypeList for a in areaIdList for h in hosIdList for t in tList]) >= 0)
 
-results = pyo.SolverFactory('cbc').solve(model)
-#results = pyo.SolverFactory('ipopt',executable='/home/jaco/Projetos/healthGraphOpt/commercial_solvers_bin/ipopt').solve(model)
-#results = pyo.SolverFactory('bonmin',executable='/home/jaco/Projetos/healthGraphOpt/commercial_solvers_bin/bonmin').solve(model)
-#results = pyo.SolverFactory('couenne',executable='/home/jaco/Projetos/healthGraphOpt/commercial_solvers_bin/bonmin').solve(model)
-#results = pyo.SolverFactory('gecode',executable='/home/jaco/Projetos/healthGraphOpt/commercial_solvers_bin/gecode').solve(model)
+#results = pyo.SolverFactory('cbc').solve(model)
+results = pyo.SolverFactory('glpk').solve(model)
+#results = pyo.SolverFactory('ipopt',executable='./commercial_solvers_bin/ipopt').solve(model)
+#results = pyo.SolverFactory('bonmin',executable='./commercial_solvers_bin/bonmin').solve(model)
+#results = pyo.SolverFactory('couenne',executable='./commercial_solvers_bin/bonmin').solve(model)
+#results = pyo.SolverFactory('gecode',executable='./commercial_solvers_bin/gecode').solve(model)
 
 results.write()
+
+debugList = []
 
 if 'ok' == str(results.Solver.status):
     print("Total Shipping Costs = ",model.Cost())
@@ -73,6 +78,11 @@ if 'ok' == str(results.Solver.status):
             for h in hosIdList:
                 for a in areaIdList:
                     if model.x[p,a,h,t]() > 0:
-                        print(f"At day {t} patient type {p} to hospital {h} from area {a} : {model.x[p,a,h,t]()} | NoPatients pht: {model.y[p,h,t]()} | Debug: {noPatN(p,h,t)()}| custo: {round(Distanceah.get((a,h),0)*model.x[p,a,h,t](),2)} | capacity: {CONCapacityrh.get((p,h),0)} | demanda: {Demandpat.get((p,a,t),0)}")
+                        debugList.append([p,a,h,t,model.x[p,a,h,t](),model.y[p,h,t](),Distanceah.get((a,h),0)*model.x[p,a,h,t](),CONCapacityrh.get((p,h),0),Demandpat.get((p,a,t),0),noPatN(p,h,t)(),InitPatientsph.get((p,h),0),releasePatientspht.get((p,h,t),0),-LOSp.get((p),0)])
+                        print(f"At day {t} patient type {p} to hospital {h} from area {a} : {model.x[p,a,h,t]()} | NoPatients pht: {model.y[p,h,t]()} | custo: {round(Distanceah.get((a,h),0)*model.x[p,a,h,t](),2)} | capacity: {CONCapacityrh.get((p,h),0)} | demanda: {Demandpat.get((p,a,t),0)}")
+
+    df = pd.DataFrame(debugList,columns=['p','a','h','t','x','y','custo','capacidadePH','demandaPAT','noPatPHT','initPatPH','releasedPHT','losP'])
+    df.to_csv('debug.csv',index=False)
 else:
     print("No Valid Solution Found")
+
