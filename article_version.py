@@ -58,7 +58,8 @@ model.equipLimit = pyo.ConstraintList() #(5) do artigo, quantidade de pacientes 
 
 for r in equipTypeList:
     for h in hosIdList:
-            model.equipLimit.add(sum([model.y[r,h,t] for t in tList]) <= CONCapacityrh[r,h])
+        for t in tList:
+            model.equipLimit.add(model.y[r,h,t] <= CONCapacityrh[r,h])
 
 #precisa? x ja foi definido como real nao negativo la em cima.
 model.positivo = pyo.ConstraintList() #(6) do artigo, alocação precisa ser positiva
