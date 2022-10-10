@@ -10,7 +10,6 @@ def time_delta(int_time:int,delta:int) -> int:
 
     int_time = int_time + timedelta(days = int(delta))
 
-
     return int_time.year*10000 + int_time.month*100 + int_time.day*1
 
 def distance_latLong(lat1,lon1,lat2,lon2):
@@ -29,6 +28,9 @@ def distance_latLong(lat1,lon1,lat2,lon2):
     a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
 
-    distance = R * c
+    if R * c == 0:
+        distance = 1.0
+    else:
+        distance = R * c
 
     return distance

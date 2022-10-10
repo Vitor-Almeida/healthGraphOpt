@@ -1,6 +1,5 @@
 import pandas as pd
 
-
 class graph_data():
 
     def __init__(self):
@@ -23,7 +22,6 @@ class graph_data():
         dffDemanda = dffPaciente.groupby(by=['dia','areaId','areaName','patTypeId','patTypeName']).agg({'qty':'sum'}).reset_index()
         dffDemanda.set_index(['patTypeId','areaId','dia'],inplace=True)
   
-
         dfCONcapacity = dfdHospital.groupby(by=['hosId','hosName','equipId','equipName']).agg({'initialEquipCap':'sum'}).reset_index()
         dfCONcapacity.set_index(['equipId','hosId'],inplace=True)
 
@@ -33,7 +31,6 @@ class graph_data():
         dfAvgLenStay = dffPaciente[['patTypeId','AvgLenStay']].drop_duplicates()
         dfAvgLenStay.set_index(['patTypeId'],inplace=True)
 
-    
         #dfmOD.reset_index(inplace=True)
 
         self.patTypeList = list(dffPaciente['patTypeId'].drop_duplicates())

@@ -8,18 +8,23 @@ def load_data(initialTime,durationTime):
 
         data = graph_data(initialTime,durationTime)
         Demandpat = data.Demandpat
+        qtdCovidReal = data.qtdCovidReal
         CONCapacityrh  = data.CONCapacityrh
+        CONCapacityrhCancer = data.CONCapacityrhCancer
         InitPatientsph  = data.InitPatientsph
         releasePatientspht  = data.releasePatientspht
         LOSp = data.LOSp
         Distanceah = data.Distanceah
 
-        # Step 1: Define index sets
+        #############################
+        # Step 1: Define index sets #
         patTypeList = data.patTypeList
         equipTypeList = data.equipIdList
         areaIdList = data.areaIdList
         hosIdList = data.hosIdList
         tList = data.tList
+        #                           #
+        #############################
 
     else:
 
@@ -56,5 +61,11 @@ def load_data(initialTime,durationTime):
         with open('./data/bin/Distanceah.pkl', 'rb') as f:
             Distanceah=pickle.load(f)
             f.close()
+        with open('./data/bin/CONCapacityrhCancer.pkl', 'rb') as f:
+            CONCapacityrhCancer = pickle.load(f)
+            f.close()
+        with open('./data/bin/qtdCovidReal.pkl', 'rb') as f:
+            qtdCovidReal = pickle.load(f)
+            f.close()
 
-    return patTypeList,areaIdList,hosIdList,equipTypeList,tList,Demandpat,CONCapacityrh,InitPatientsph,releasePatientspht,LOSp,Distanceah
+    return patTypeList,areaIdList,hosIdList,equipTypeList,tList,Demandpat,CONCapacityrh,InitPatientsph,releasePatientspht,LOSp,Distanceah,CONCapacityrhCancer,qtdCovidReal
