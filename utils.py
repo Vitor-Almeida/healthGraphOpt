@@ -1,5 +1,47 @@
 from math import sin, cos, sqrt, atan2, radians
 from datetime import datetime, timedelta
+import pandas as pd
+import numpy as np
+
+def _normalize_demand(dfDemandaCancer:pd.DataFrame, timeSeires:np.array):
+
+    dfDemandaCancer['WEEKDAY'] = dfDemandaCancer['Timestamp'].apply(datetime.weekday)
+
+    meanDivision = dfDemandaCancer[['DT_INTER','WEEKDAY']].drop_duplicates()
+    meanDivision = meanDivision.groupby(by=['WEEKDAY']).agg({'DT_INTER':'count'}).reset_index()
+    meanDivision.rename(columns={'DT_INTER':'DIVISOR'},inplace=True)
+
+    dfDemandaCancer = dfDemandaCancer.groupby(by=['MUNIC_RES','TP_PAC_AGRP','WEEKDAY']).agg({'QTY':'sum'}).reset_index()
+    dfDemandaCancer = dfDemandaCancer.merge(meanDivision,how='inner',on=['WEEKDAY'])
+    
+    dfDemandaCancer['QTY'] = dfDemandaCancer['QTY'] / dfDemandaCancer['DIVISOR']
+    dfDemandaCancer.drop(columns=['DIVISOR'],inplace=True)
+
+    timeSeires = np.expand_dims(timeSeires,axis=1)
+    timeSeiresDf = pd.DataFrame(timeSeires,columns=['DT_INTER'])
+    timeSeiresDf['Timestamp'] = pd.to_datetime(timeSeiresDf['DT_INTER'], format='%Y%m%d')
+    timeSeiresDf['WEEKDAY'] = timeSeiresDf['Timestamp'].apply(datetime.weekday)
+
+    dfDemandaCancer = timeSeiresDf.merge(dfDemandaCancer,how='inner',on=['WEEKDAY'])
+
+    dfDemandaCancer = dfDemandaCancer[['DT_INTER','MUNIC_RES','TP_PAC_AGRP','QTY']]
+
+    arrToChose = dfDemandaCancer[dfDemandaCancer['QTY']<1]
+    totalToChose = round(arrToChose['QTY'].sum())
+    escohla = np.random.choice(arrToChose.index.to_numpy(),size=totalToChose,replace=False)
+
+    arrToChose = arrToChose[arrToChose.index.isin(escohla)]
+    arrToChose['QTY'] = 1
+
+    dfDemandaCancer = dfDemandaCancer[dfDemandaCancer['QTY']>=1]
+    dfDemandaCancer['QTY'] = dfDemandaCancer['QTY'].round(decimals=0)
+
+    dfDemandaCancer = pd.concat([dfDemandaCancer,arrToChose],ignore_index=True)
+
+    dfDemandaCancer['QTY'] = dfDemandaCancer['QTY'].astype(int)
+
+    return dfDemandaCancer
+
 
 def time_delta(int_time:int,delta:int) -> int:
 

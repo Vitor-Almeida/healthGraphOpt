@@ -112,7 +112,7 @@ def _create_dyn_qtd(hospDf:pd.DataFrame,encdF:pd.DataFrame):
 
     return hospDfSoCancer, patDfCovidAcu
 
-def encoding_patType(patDf:pd.DataFrame,hospDf:pd.DataFrame):
+def encoding_patType(patDf:pd.DataFrame,hospDf:pd.DataFrame,dfDemandaCancer:pd.DataFrame):
 
     toEnc = np.expand_dims(np.unique(patDf['TP_PAC_AGRP']),axis=0).T
     toEncInd = np.expand_dims(np.arange(toEnc.shape[0]),axis=0).T
@@ -123,18 +123,22 @@ def encoding_patType(patDf:pd.DataFrame,hospDf:pd.DataFrame):
 
     patDf = patDf.merge(encdF,on='TP_PAC_AGRP')
     hospDf = hospDf.merge(encdF,on='TP_PAC_AGRP')
+    dfDemandaCancer = dfDemandaCancer.merge(encdF,on='TP_PAC_AGRP')
+
     patDf.drop(columns=['TP_PAC_AGRP'],inplace=True)
     hospDf.drop(columns=['TP_PAC_AGRP'],inplace=True)
+    dfDemandaCancer.drop(columns=['TP_PAC_AGRP'],inplace=True)
 
     patDf.rename(columns={'IDX':'TP_PAC_AGRP'},inplace=True)
     hospDf.rename(columns={'IDX':'TP_PAC_AGRP'},inplace=True)
+    dfDemandaCancer.rename(columns={'IDX':'TP_PAC_AGRP'},inplace=True)
 
     #organizing columns sequence:
     patDf = patDf[['DT_INTER','MUNIC_RES','TP_PAC_AGRP','QTY','MED_PERM']]
     hospDf = hospDf[['DATA','CNES','TP_PAC_AGRP','QTD_POS','QTD_NEG','QTD_NET','QTD_ACU','QTD_RELEASE','QT_SUS']]
+    dfDemandaCancer = dfDemandaCancer[['DT_INTER','MUNIC_RES','TP_PAC_AGRP','QTY']]
 
-    return patDf,hospDf,encdF
-
+    return patDf,hospDf,dfDemandaCancer,encdF
 
 def _deparaLeitos(row):
 
@@ -197,10 +201,20 @@ def _load_deparas(dffPaciente:pd.DataFrame,dfdLeiPath:pd.DataFrame):
     procDf = procDf.apply(lambda row: _deparaProc(row),axis=1)
     leitosDf = leitosDf.apply(lambda row: _deparaLeitos(row),axis=1)
 
-    dffPaciente = dffPaciente.merge(cidDf[['ICD_10','TP_DOENCA']], left_on='DIAG_PRINC',right_on='ICD_10')
-    dffPaciente = dffPaciente.merge(procDf[['Codigo','TP_PROC']], left_on='PROC_REA',right_on='Codigo')
-    dfdLeiPath = dfdLeiPath.merge(leitosDf[['CO_LEITO','DESC_LEITO']], left_on='CODLEITO',right_on='CO_LEITO')
+    dffPaciente = dffPaciente.merge(cidDf[['ICD_10','TP_DOENCA']], how='left', left_on='DIAG_PRINC',right_on='ICD_10')
+    dffPaciente = dffPaciente.merge(procDf[['Codigo','TP_PROC']], how='left', left_on='PROC_REA',right_on='Codigo')
+    dfdLeiPath = dfdLeiPath.merge(leitosDf[['CO_LEITO','DESC_LEITO']], how='left', left_on='CODLEITO',right_on='CO_LEITO')
+
+    dffPaciente['TP_DOENCA'].fillna("OUTROS",inplace=True)
+    dffPaciente['TP_PROC'].fillna("CLINICOS",inplace=True)
 
     dffPaciente['TP_PAC_AGRP'] = dffPaciente['TP_DOENCA'].astype(str) + '_' + dffPaciente['TP_PROC'].astype(str)
 
-    return dffPaciente, dfdLeiPath
+    dfDemandaCancer = dffPaciente[(dffPaciente['DT_INTER']>=20190101) & (dffPaciente['DT_INTER']<20200232)]
+    dfDemandaCancer = dfDemandaCancer[(dfDemandaCancer['TP_PAC_AGRP']=='CANCER_CIRURGIA') | (dfDemandaCancer['TP_PAC_AGRP']=='CANCER_CLINICOS')]
+
+    dfDemandaCancer = dfDemandaCancer.groupby(by=['DT_INTER','MUNIC_RES','TP_PAC_AGRP']).agg({'N_AIH':'count'}).reset_index()
+    dfDemandaCancer.rename(columns={'N_AIH':'QTY'},inplace=True)
+    dfDemandaCancer['Timestamp'] = pd.to_datetime(dfDemandaCancer['DT_INTER'], format='%Y%m%d')
+
+    return dffPaciente, dfdLeiPath, dfDemandaCancer

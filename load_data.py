@@ -8,6 +8,7 @@ def load_data(initialTime,durationTime):
 
         data = graph_data(initialTime,durationTime)
         Demandpat = data.Demandpat
+        DemandCancerpat = data.DemandCancerpat
         qtdCovidReal = data.qtdCovidReal
         CONCapacityrh  = data.CONCapacityrh
         CONCapacityrhCancer = data.CONCapacityrhCancer
@@ -67,5 +68,8 @@ def load_data(initialTime,durationTime):
         with open('./data/bin/qtdCovidReal.pkl', 'rb') as f:
             qtdCovidReal = pickle.load(f)
             f.close()
+        with open('./data/bin/DemandCancerpat.pkl', 'rb') as f:
+            DemandCancerpat = pickle.load(f)
+            f.close()
 
-    return patTypeList,areaIdList,hosIdList,equipTypeList,tList,Demandpat,CONCapacityrh,InitPatientsph,releasePatientspht,LOSp,Distanceah,CONCapacityrhCancer,qtdCovidReal
+    return patTypeList,areaIdList,hosIdList,equipTypeList,tList,Demandpat,CONCapacityrh,InitPatientsph,releasePatientspht,LOSp,Distanceah,CONCapacityrhCancer,qtdCovidReal,DemandCancerpat

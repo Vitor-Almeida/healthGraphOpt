@@ -9,7 +9,7 @@ durationTime=20
 
 #colocar ida e volta
 
-patTypeList,areaIdList,hosIdList,equipTypeList,tList,Demandpat,CONCapacityrh,InitPatientsph,releasePatientspht,LOSp,Distanceah,CONCapacityrhCancer,qtdCovidReal = load_data(initialTime,durationTime)
+patTypeList,areaIdList,hosIdList,equipTypeList,tList,Demandpat,CONCapacityrh,InitPatientsph,releasePatientspht,LOSp,Distanceah,CONCapacityrhCancer,qtdCovidReal,DemandCancerpat = load_data(initialTime,durationTime)
 
 totalVars = len(patTypeList) * len(areaIdList) * len(hosIdList) * len(tList)
 print(totalVars)
@@ -59,6 +59,8 @@ for r in equipTypeList:
     for h in hosIdList:
         for t in tList:
             model.equipLimit.add(model.y[r,h,t] <= CONCapacityrh.get((r,h),0))
+
+#em média 1 leito atende quantos pacientes do mês?
 
 #precisa? x ja foi definido como real nao negativo la em cima.
 model.positivo = pyo.ConstraintList() #(6) do artigo, alocação precisa ser positiva
