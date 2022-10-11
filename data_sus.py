@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import numpy as np
-from utils import distance_latLong, time_delta
+from utils import distance_latLong, time_delta, _normalize_demand
 import itertools
 import pickle
 from deParas import _load_deparas, encoding_patType, _create_dyn_qtd
@@ -62,11 +62,11 @@ class graph_data():
         self.durationTime = durationTime
         self.finialTime = time_delta(self.initialTime,+self.durationTime)
 
-        #talvez vai precisar pegar outro périodo pra pegar a média pré-pandemia.
-        #self.dffPaciente  = self.dffPaciente[(self.dffPaciente['DT_INTER']>=self.initialTime) & (self.dffPaciente['DT_SAIDA']<self.finialTime)]
+        self.dffPaciente, self.dfdLeiPath, dfDemandaCancer = _load_deparas(self.dffPaciente,self.dfdLeiPath)
 
-        self.dffPaciente, self.dfdLeiPath = _load_deparas(self.dffPaciente,self.dfdLeiPath) #checar os NA do depara, jogar para OUTROS_CLIN.?
-        
+        #--> primeira coisa pra fazer é a capacidade dinamica. e o normalize_demanda
+        #depois, poca tudo que nao é cancer, e segue normal.
+
         odDf = self._create_od_matrix() #sai do real também, nao era pra sair do real, talvez rodar ela antes do filtro da data.
         self._create_real_patdf() #exportar csvs para o gephi no windows.
         patDf = self._process_patDf() #junta a média da stay
@@ -76,6 +76,9 @@ class graph_data():
         patDf = patDf[(patDf['DT_INTER']>=self.initialTime) & (patDf['DT_INTER']<self.finialTime)]
         hospDf = hospDf[(hospDf['DATA']>=self.initialTime) & (hospDf['DATA']<self.finialTime)]
 
+        dfDemandaCancer = _normalize_demand(dfDemandaCancer,np.unique(patDf['DT_INTER']))
+
+        #fazer esse join em outro lugar:
         #colocar inner aq:
         hospDf = hospDf.merge(equipDf, how='left', left_on=['TP_PAC_AGRP','CNES'], right_on=['DESC_LEITO','CNES']) #olhar os NAN!
         hospDf.drop(columns=['DESC_LEITO'],inplace=True)
@@ -83,7 +86,7 @@ class graph_data():
         hospDf = self._create_ghost_hosp(hospDf)
 
         ##encoding do tipo de paciente:
-        patDf,hospDf,encdF = encoding_patType(patDf,hospDf)
+        patDf,hospDf,dfDemandaCancer,encdF = encoding_patType(patDf,hospDf,dfDemandaCancer)
 
         odDf=odDf[odDf['MUNIC_RES'].isin(patDf['MUNIC_RES'])]
         odDf=odDf[odDf['CNES'].isin(hospDf['CNES'])]
@@ -118,6 +121,8 @@ class graph_data():
 
         dffDemanda = patDf.groupby(by=['DT_INTER','MUNIC_RES','TP_PAC_AGRP']).agg({'QTY':'sum'}).reset_index()
         dffDemanda.set_index(['TP_PAC_AGRP','MUNIC_RES','DT_INTER'],inplace=True)
+
+        dfDemandaCancer.set_index(['TP_PAC_AGRP','MUNIC_RES','DT_INTER'],inplace=True)
   
         dfCONcapacity = hospDf.groupby(by=['CNES','TP_PAC_AGRP']).agg({'QT_SUS':'max'}).reset_index()
         dfCONcapacity.set_index(['TP_PAC_AGRP','CNES'],inplace=True)
@@ -144,6 +149,8 @@ class graph_data():
         self.qtdCovidReal = {index:row['QTD_ACU'] for index, row in patCovidReal.iterrows()}
 
         self.Demandpat = {index:row['QTY'] for index, row in dffDemanda.iterrows()}
+
+        self.DemandCancerpat = {index:row['QTY'] for index, row in dfDemandaCancer.iterrows()}
 
         self.CONCapacityrh  = {index:row['QT_SUS'] for index, row in dfCONcapacity.iterrows()} 
 
@@ -199,6 +206,9 @@ class graph_data():
             f.close()
         with open('./data/bin/qtdCovidReal.pkl', 'wb') as f:
             pickle.dump(self.qtdCovidReal, f)
+            f.close()
+        with open('./data/bin/DemandCancerpat.pkl', 'wb') as f:
+            pickle.dump(self.DemandCancerpat, f)
             f.close()
 
         return None
