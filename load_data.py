@@ -7,13 +7,11 @@ def load_data(initialTime,durationTime):
     if not os.path.exists('./data/bin/patTypeList.pkl'):
 
         data = graph_data(initialTime,durationTime)
-        Demandpat = data.Demandpat
         DemandCancerpat = data.DemandCancerpat
         qtdCovidReal = data.qtdCovidReal
-        CONCapacityrh  = data.CONCapacityrh
         CONCapacityrhCancer = data.CONCapacityrhCancer
-        InitPatientsph  = data.InitPatientsph
-        releasePatientspht  = data.releasePatientspht
+        InitPatientsph  = data.InitPatientsphCancer
+        releasePatientspht  = data.releasePatientsphtCancer
         LOSp = data.LOSp
         Distanceah = data.Distanceah
 
@@ -44,16 +42,16 @@ def load_data(initialTime,durationTime):
         with open('./data/bin/tList.pkl', 'rb') as f:
             tList=pickle.load(f)
             f.close()
-        with open('./data/bin/Demandpat.pkl', 'rb') as f:
-            Demandpat=pickle.load(f)
+        with open('./data/bin/DemandCancerpat.pkl', 'rb') as f:
+            DemandCancerpat=pickle.load(f)
             f.close()
-        with open('./data/bin/CONCapacityrh.pkl', 'rb') as f:
-            CONCapacityrh=pickle.load(f)
+        with open('./data/bin/CONCapacityrhCancer.pkl', 'rb') as f:
+            CONCapacityrhCancer=pickle.load(f)
             f.close()
-        with open('./data/bin/InitPatientsph.pkl', 'rb') as f:
+        with open('./data/bin/InitPatientsphCancer.pkl', 'rb') as f:
             InitPatientsph=pickle.load(f)
             f.close()
-        with open('./data/bin/releasePatientspht.pkl', 'rb') as f:
+        with open('./data/bin/releasePatientsphtCancer.pkl', 'rb') as f:
             releasePatientspht=pickle.load(f)
             f.close()
         with open('./data/bin/LOSp.pkl', 'rb') as f:
@@ -62,14 +60,8 @@ def load_data(initialTime,durationTime):
         with open('./data/bin/Distanceah.pkl', 'rb') as f:
             Distanceah=pickle.load(f)
             f.close()
-        with open('./data/bin/CONCapacityrhCancer.pkl', 'rb') as f:
-            CONCapacityrhCancer = pickle.load(f)
-            f.close()
         with open('./data/bin/qtdCovidReal.pkl', 'rb') as f:
             qtdCovidReal = pickle.load(f)
             f.close()
-        with open('./data/bin/DemandCancerpat.pkl', 'rb') as f:
-            DemandCancerpat = pickle.load(f)
-            f.close()
 
-    return patTypeList,areaIdList,hosIdList,equipTypeList,tList,Demandpat,CONCapacityrh,InitPatientsph,releasePatientspht,LOSp,Distanceah,CONCapacityrhCancer,qtdCovidReal,DemandCancerpat
+    return patTypeList,areaIdList,hosIdList,equipTypeList,tList,DemandCancerpat,CONCapacityrhCancer,InitPatientsph,releasePatientspht,LOSp,Distanceah,qtdCovidReal

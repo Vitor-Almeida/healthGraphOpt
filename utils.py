@@ -3,7 +3,12 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 
-def _normalize_demand(dfDemandaCancer:pd.DataFrame, timeSeires:np.array):
+def _normalize_demand(dfDemandaCancer:pd.DataFrame, initialTime:int,finialTime:int):
+
+    alldates = pd.date_range(start=datetime.strptime(str(initialTime), '%Y%m%d'),
+                                 end=datetime.strptime(str(finialTime), '%Y%m%d'),freq='D')
+
+    timeSeires = [dates.year*10000 + dates.month*100 + dates.day for dates in alldates]
 
     dfDemandaCancer['WEEKDAY'] = dfDemandaCancer['Timestamp'].apply(datetime.weekday)
 
