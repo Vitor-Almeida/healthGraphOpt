@@ -8,11 +8,11 @@ def _logica_fix_init(row,dfInitFix,dfCumSum):
     key1 = row['CNES']
     key2 = row['TP_PAC_AGRP']
 
-    if (dfInitFix[key1,key2] - dfCumSum[key0,key1,key2]) < 0:
+    if dfInitFix.get((key1,key2),0) - dfCumSum.get((key0,key1,key2),0) < 0:
         print('error: RELEASE MAIOR QUE PACIENTES INICIAL NO PERIODO DE SIMULAÇÃO')
     else:
-        if row['QT_SUS'] < dfInitFix[key1,key2] - dfCumSum[key0,key1,key2]:
-            row['QT_SUS'] = dfInitFix[key1,key2] - dfCumSum[key0,key1,key2]
+        if row['QT_SUS'] < dfInitFix.get((key1,key2),0) - dfCumSum.get((key0,key1,key2),0):
+            row['QT_SUS'] = dfInitFix.get((key1,key2),0) - dfCumSum.get((key0,key1,key2),0)
 
     return row
 

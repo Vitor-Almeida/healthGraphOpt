@@ -19,13 +19,13 @@ class graph_data():
 
     def __init__(self,initialTime,durationTime):
 
-        curDir = os.path.dirname(os.path.realpath(__file__))
-        fPatPath = os.path.join(curDir,'data','raw','SIH_CE.csv')
-        dHosPath = os.path.join(curDir,'data','raw','ST_CNES_CE.csv')
-        dEquipPath = os.path.join(curDir,'data','raw','EQ_CNES_CE.csv')
-        dProfPath = os.path.join(curDir,'data','raw','PF_CNES_CE.csv')
-        dLeiPath = os.path.join(curDir,'data','raw','LT_CNES_CE.csv')
-        dfLatLongPath = os.path.join(curDir,'data','external','latlongMun.csv')
+        self.curDir = os.path.dirname(os.path.realpath(__file__))
+        fPatPath = os.path.join(self.curDir,'data','raw','SIH_CE.csv')
+        dHosPath = os.path.join(self.curDir,'data','raw','ST_CNES_CE.csv')
+        dEquipPath = os.path.join(self.curDir,'data','raw','EQ_CNES_CE.csv')
+        dProfPath = os.path.join(self.curDir,'data','raw','PF_CNES_CE.csv')
+        dLeiPath = os.path.join(self.curDir,'data','raw','LT_CNES_CE.csv')
+        dfLatLongPath = os.path.join(self.curDir,'data','external','latlongMun.csv')
         self.initialTime = initialTime
         self.durationTime = durationTime
         self.finialTime = time_delta(self.initialTime,+self.durationTime)
@@ -65,14 +65,16 @@ class graph_data():
 
         dfDemandaCancer = _normalize_demand(dfDemandaCancer,self.initialTime,self.finialTime)
 
+        self._create_bi_data_host_ocu()
         dffProfQty, dffProfHrs = self._create_prof_data()
         odDf = self._create_od_matrix() #sai do real também, nao era pra sair do real, talvez rodar ela antes do filtro da data.
         self._create_real_patdf() #exportar csvs para o gephi no windows.
         patDf = self._process_patDf() #junta a média da stay
         equipDf = self._process_equipDf()
-        hospDf = self._process_hosDf(colName='TP_PAC_AGRP') #ta saindo da tabela real, teria que puxar da tabela de estabelecimento mesmo. Isso aqui é a tabela de demanda/release, nao é dimhosp, tem q no minimo fazer a permutação total CNES vs DIA
-        hospDfAgr = self._process_hosDf(colName='TP_PAC_AGRP_AGRUPADA')
+        hospDf,_ = self._process_hosDf(colName='TP_PAC_AGRP') #ta saindo da tabela real, teria que puxar da tabela de estabelecimento mesmo. Isso aqui é a tabela de demanda/release, nao é dimhosp, tem q no minimo fazer a permutação total CNES vs DIA
+        hospDfAgr,dfAjusteEquip = self._process_hosDf(colName='TP_PAC_AGRP_AGRUPADA')
         hospDfAgr.rename(columns={'TP_PAC_AGRP_AGRUPADA':'TP_PAC_AGRP'},inplace=True)
+        dfAjusteEquip.rename(columns={'TP_PAC_AGRP_AGRUPADA':'TP_PAC_AGRP'},inplace=True)
 
         listaHosp = np.unique(self.dffPaciente['CNES']).tolist() + [0]
 
@@ -83,11 +85,34 @@ class graph_data():
         hospDfCovid.drop(columns=['TP_PAC_AGRP'],inplace=True)
         hospDfCovid = hospDfCovid.groupby(by=['DATA','CNES']).agg({'QTD_POS':'sum','QTD_NEG':'sum','QTD_NET':'sum','QTD_ACU':'sum','QTD_RELEASE':'sum'}).reset_index()
         hospDfCovid = hospDfCovid[['DATA','CNES','QTD_ACU']]
+        hospDfCovid = hospDfCovid.astype(int)
+
+        ghostHospDATA = [hospDfCovid['DATA'].tolist()]
+        ghostHospCNES = [0] * len(hospDfCovid)
+        ghostHospQTDACU = [999999] * len(hospDfCovid)
+
+        ghostHospDATA.append(ghostHospCNES)
+        ghostHospDATA.append(ghostHospQTDACU)
+        ghostHosp = np.array(ghostHospDATA).T
+        ghostHosp = pd.DataFrame(ghostHosp,columns=['DATA','CNES','QTD_ACU'])
+        ghostHosp['CNES'] = ghostHosp['CNES'].astype(int)
+        ghostHosp['DATA'] = ghostHosp['DATA'].astype(int)
+        ghostHosp['QTD_ACU'] = ghostHosp['QTD_ACU'].astype(int)
+        ghostHosp = ghostHosp.drop_duplicates()
+
+        hospDfCovid = pd.concat([hospDfCovid,ghostHosp],ignore_index=True)
 
         ######## NAN ################
         hospDfAgr = hospDfAgr.merge(equipDf, how='left', left_on=['TP_PAC_AGRP','CNES','DATA'], right_on=['DESC_LEITO','CNES','DATA']) #olhar os NAN!
+        ajustEquip = hospDfAgr[hospDfAgr['QT_SUS'].isnull()]
+        ajustEquip = ajustEquip.merge(dfAjusteEquip,how='inner',on=['TP_PAC_AGRP','CNES'])
+        ajustEquip.drop(columns=['QT_SUS','DESC_LEITO'],inplace=True)
+        ajustEquip.rename(columns={'QTD_SUS_AJ':'QT_SUS'},inplace=True)
+
         hospDfAgr.drop(columns=['DESC_LEITO'],inplace=True)
         hospDfAgr = hospDfAgr[hospDfAgr['QT_SUS']>0] #aqui ta tirando os NAN
+        hospDfAgr = pd.concat([hospDfAgr,ajustEquip],ignore_index=False) #ajustando leitos n-existentes
+        hospDfAgr = hospDfAgr.sort_values(by=['DATA','CNES','TP_PAC_AGRP'])
         hospDfAgr = self._create_ghost_hosp(hospDfAgr)
         ##############################
 
@@ -122,6 +147,8 @@ class graph_data():
         hospDfCovid.drop(columns=['QTY','QTD_ACU'],inplace=True)
         hospDfCovid.rename(columns={'QTY_TT':'QTY'},inplace=True)
         hospDfCovid = hospDfCovid[hospDfCovid['QTY']>0]
+
+        #hospDfCovid = self._create_ghost_hosp(hospDfAgr)
 
         hospDfCovid.set_index(['DATA','CNES'],inplace=True)
 
@@ -257,6 +284,8 @@ class graph_data():
         arrOrigem['DIST'] = arrOrigem.apply(lambda row: distance_latLong(row['latitude_ori'],row['longitude_ori'],row['latitude_dest'],row['longitude_dest']),axis=1)
 
         arrOrigem = arrOrigem[['MUNIC_RES','MUNIC_MOV','DIST']]
+        arrOrigem.to_csv(os.path.join(self.curDir,'data','external','distsBI.csv'),index=False)
+
         arrOrigem = arrOrigem.merge(dfCnesLocal,how='left',left_on='MUNIC_MOV',right_on='MUNIC_MOV')
         arrOrigem = arrOrigem[['MUNIC_RES','CNES','DIST']]
 
@@ -343,13 +372,18 @@ class graph_data():
         dfResample['QTD_NET'] = dfResample['QTD_NET'].fillna(0)
         dfResample['QTD_RELEASE'] = dfResample['QTD_RELEASE'].fillna(0)
 
+        dfAjusteEquip = dfResample[(dfResample[colName]=='CANCER_CIRURGIA') | (dfResample[colName]=='CANCER_CLINICOS')]
+        dfAjusteEquip = dfAjusteEquip.groupby(by=['CNES',colName]).agg({'QTD_ACU':'max'}).reset_index()
+        dfAjusteEquip = dfAjusteEquip[dfAjusteEquip['QTD_ACU']>0]
+        dfAjusteEquip.rename(columns={'QTD_ACU':'QTD_SUS_AJ'},inplace=True)
+
         dfResample = dfResample[(dfResample['DATA']>=self.initialTime) & (dfResample['DATA']<self.finialTime)]
 
         #juntar esse dfResample com o hosDf x todos os dias x todas as doenças[equip], backfill e foward fill, e tchau.
 
         #dfResample = dfResample[(dfResample['DATA']>=self.initialTime) & (dfResample['DATA']<self.finialTime)]
 
-        return dfResample
+        return dfResample, dfAjusteEquip
 
     def _process_equipDf(self):
 
@@ -391,6 +425,29 @@ class graph_data():
         dffProfission.drop(columns=['datetime'],inplace=True)
         dffProfission.rename(columns={'exp_date':'DATA'},inplace=True)
 
+        ##fantasma:
+        ghostHospList = [[0] * len(dffProfission)]
+        nomCbo = ['Médico'] * len(dffProfission)
+        datas = dffProfission['DATA'].tolist()
+        maxDistList = [999999] * len(dffProfission)
+        maxCboQtyList = [999999] * len(dffProfission)
+
+        ghostHospList.append(nomCbo)
+        ghostHospList.append(maxDistList)
+        ghostHospList.append(maxCboQtyList)
+        ghostHospList.append(datas)
+
+        ghostDfNP2d = np.array(ghostHospList).T
+
+        dfFantasma = pd.DataFrame(ghostDfNP2d,columns=['CNES','Nome_Cbo','HORAS','CBO','DATA'])
+        dfFantasma['CNES'] = dfFantasma['CNES'].astype(int)
+        dfFantasma['HORAS'] = dfFantasma['HORAS'].astype(int)
+        dfFantasma['CBO'] = dfFantasma['CBO'].astype(int)
+
+        dfFantasma = dfFantasma.drop_duplicates()
+
+        dffProfission = pd.concat([dffProfission,dfFantasma],ignore_index=True)
+        ###
         dffProfission['DATA'] = dffProfission['DATA'].apply(lambda row: row.year*10000+row.month*100+row.day)
 
         ##simplificacao: pegar QLP total:
@@ -401,8 +458,6 @@ class graph_data():
         dffProfHrs = dffProfission.groupby(by=['CNES','HORAS','DATA']).agg({'CBO':'sum'}).reset_index()
         dffProfHrs['QTY'] = dffProfHrs['HORAS']*dffProfHrs['CBO']
         dffProfHrs = dffProfHrs.groupby(by=['CNES','DATA']).agg({'QTY':'sum'}).reset_index()
-
-        ##
 
         return dffProfQty, dffProfHrs
 
@@ -442,6 +497,7 @@ class graph_data():
         df.drop(columns=['codigo_ibge'],inplace=True)
 
         df['DIST'] = df.apply(lambda row: distance_latLong(row['latitude_ori'],row['longitude_ori'],row['latitude_dest'],row['longitude_dest']),axis=1)
+        df['DIST'] = df['DIST'].astype(int)
         df.drop(columns=['latitude_ori','longitude_ori','latitude_dest','longitude_dest'],inplace=True)
         df['Weight'] = df['QTY']
         df.drop(columns=['QTY'],inplace=True)
@@ -452,9 +508,16 @@ class graph_data():
 
         nodeDf.rename(columns={'codigo_ibge':'Id'},inplace=True)
 
-        df['Timestamp'] = pd.to_datetime(df['DT_INTER'], format='%Y%m%d')
+        df['ESTAMPA_DO_TEMPO'] = pd.to_datetime(df['DT_INTER'], format='%Y%m%d')
 
-        df = df.groupby(by=['DT_INTER','Source','Target','TP_PAC_AGRP','Timestamp']).agg({'Weight':'sum'}).reset_index()
+        df['ESTADO'] = df['Source'].apply(lambda row: int(str(row)[0:2])).astype(int)
+        df = df[df['ESTADO']==23]
+        df.drop(columns=['ESTADO'],inplace=True)
+        df = df[~df['Source'].isin([231260,231085,231025,231020,230970,230960,230770,230765,230625,230523,230495,230440,230428,230395,230370,230350,230100])]
+
+        #df = df[df['DT_INTER']>=20]
+
+        df = df.groupby(by=['DT_INTER','Source','Target','TP_PAC_AGRP','ESTAMPA_DO_TEMPO','DIST']).agg({'Weight':'sum'}).reset_index()
 
         nodeDf = nodeDf[nodeDf['Id'].isin(np.unique(df['Source'].tolist()+df['Target'].tolist()))]
 
@@ -464,3 +527,35 @@ class graph_data():
         return None
 
 #teste = graph_data(initialTime=20210101,durationTime=8)
+
+    def _create_bi_data_host_ocu(self):
+
+        df = self.dffPaciente[['DT_INTER','CNES','TP_DOENCA']]
+        df['QTY'] = 1
+
+        df_outros = df[df['TP_DOENCA']=='OUTROS']
+        df_covid = df[df['TP_DOENCA']=='COVID']
+        df_cancer = df[df['TP_DOENCA']=='CANCER']
+
+        df_outros = df_outros.groupby(by=['DT_INTER','CNES']).agg({'QTY':'sum'}).reset_index()
+        df_outros.rename(columns={'QTY':'QTY_OUTROS'},inplace=True)
+        df_covid = df_covid.groupby(by=['DT_INTER','CNES']).agg({'QTY':'sum'}).reset_index()
+        df_covid.rename(columns={'QTY':'QTY_COVID'},inplace=True)
+        df_cancer = df_cancer.groupby(by=['DT_INTER','CNES']).agg({'QTY':'sum'}).reset_index()
+        df_cancer.rename(columns={'QTY':'QTY_CANCER'},inplace=True)
+
+        df = df[['DT_INTER','CNES']].drop_duplicates()
+
+        df = df.merge(df_outros,how='left',on=['DT_INTER','CNES'])
+        df = df.merge(df_covid,how='left',on=['DT_INTER','CNES'])
+        df = df.merge(df_cancer,how='left',on=['DT_INTER','CNES'])
+
+        df.fillna(0,inplace=True)
+
+        df = df.astype(int)
+
+        df['QTY_TOTAL'] = df['QTY_OUTROS'] + df['QTY_COVID'] + df['QTY_CANCER']
+
+        df.to_csv(os.path.join(self.curDir,'data','external','ocupacao_hosp_real_BI.csv'),index=False)
+
+        return None
