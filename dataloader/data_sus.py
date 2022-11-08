@@ -1,11 +1,11 @@
 import pandas as pd
 import os
 import numpy as np
-from utils import distance_latLong, time_delta, _normalize_demand
+from utils.utils import distance_latLong, time_delta, _normalize_demand
 import itertools
 import pickle
 from datetime import datetime
-from deParas import _load_deparas, encoding_patType, _create_dyn_qtd
+from dataloader.deParas import _load_deparas, encoding_patType, _create_dyn_qtd
 
 def fix_initial_cap(row):
 
@@ -19,7 +19,8 @@ class graph_data():
 
     def __init__(self,initialTime,durationTime):
 
-        self.curDir = os.path.dirname(os.path.realpath(__file__))
+        #self.curDir = os.path.dirname(os.path.realpath(__file__))
+        self.curDir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
         fPatPath = os.path.join(self.curDir,'data','raw','SIH_CE.csv')
         dHosPath = os.path.join(self.curDir,'data','raw','ST_CNES_CE.csv')
         dEquipPath = os.path.join(self.curDir,'data','raw','EQ_CNES_CE.csv')
@@ -65,13 +66,15 @@ class graph_data():
 
         dfDemandaCancer = _normalize_demand(dfDemandaCancer,self.initialTime,self.finialTime)
 
-        self._create_bi_data_host_ocu()
         dffProfQty, dffProfHrs = self._create_prof_data()
         odDf = self._create_od_matrix() #sai do real também, nao era pra sair do real, talvez rodar ela antes do filtro da data.
         self._create_real_patdf() #exportar csvs para o gephi no windows.
         patDf = self._process_patDf() #junta a média da stay
         equipDf = self._process_equipDf()
         hospDf,_ = self._process_hosDf(colName='TP_PAC_AGRP') #ta saindo da tabela real, teria que puxar da tabela de estabelecimento mesmo. Isso aqui é a tabela de demanda/release, nao é dimhosp, tem q no minimo fazer a permutação total CNES vs DIA
+
+        self._create_bi_data_host_ocu(hospDf)
+
         hospDfAgr,dfAjusteEquip = self._process_hosDf(colName='TP_PAC_AGRP_AGRUPADA')
         hospDfAgr.rename(columns={'TP_PAC_AGRP_AGRUPADA':'TP_PAC_AGRP'},inplace=True)
         dfAjusteEquip.rename(columns={'TP_PAC_AGRP_AGRUPADA':'TP_PAC_AGRP'},inplace=True)
@@ -79,6 +82,15 @@ class graph_data():
         listaHosp = np.unique(self.dffPaciente['CNES']).tolist() + [0]
 
         patDf = patDf[(patDf['DT_INTER']>=self.initialTime) & (patDf['DT_INTER']<self.finialTime)]
+
+
+        dicAuxTT = hospDf.copy(deep=True)
+        dicAuxTT = dicAuxTT[(dicAuxTT['TP_PAC_AGRP']=='OUTROS_CIRURGIA') | (dicAuxTT['TP_PAC_AGRP']=='OUTROS_CLINICOS')]
+        dicAuxTT = dicAuxTT[['DATA','CNES','QTD_ACU']]
+        dicAuxTT = dicAuxTT.groupby(by=['DATA','CNES']).agg({'QTD_ACU':'sum'}).reset_index()
+        dicAuxTT.rename(columns={'QTD_ACU':'QTY'},inplace=True)
+        dicAuxTT = dicAuxTT[dicAuxTT['QTY']>0]
+        dicAuxTT.set_index(['DATA','CNES'],inplace=True)
 
         hospDfCovid = hospDf.copy(deep=True)
         hospDfCovid = hospDfCovid[(hospDfCovid['TP_PAC_AGRP']=='COVID_CLINICOS') | (hospDfCovid['TP_PAC_AGRP']=='COVID_CIRURGIA')]
@@ -142,11 +154,17 @@ class graph_data():
 
         hospDfCovid = hospDfCovid.astype(int)
 
+        hospDfPuroCovid = hospDfCovid.copy(deep=True)
+
         hospDfCovid = hospDfCovid.merge(dffProfQty, how = 'inner', on=['DATA','CNES'])
         hospDfCovid['QTY_TT'] = hospDfCovid['QTY'] * hospDfCovid['QTD_ACU']
         hospDfCovid.drop(columns=['QTY','QTD_ACU'],inplace=True)
         hospDfCovid.rename(columns={'QTY_TT':'QTY'},inplace=True)
         hospDfCovid = hospDfCovid[hospDfCovid['QTY']>0]
+
+        hospDfPuroCovid.rename(columns={'QTD_ACU':'QTY'},inplace=True)
+        hospDfPuroCovid = hospDfPuroCovid[hospDfPuroCovid['QTY']>0]
+        hospDfPuroCovid.set_index(['DATA','CNES'],inplace=True)
 
         #hospDfCovid = self._create_ghost_hosp(hospDfAgr)
 
@@ -179,7 +197,15 @@ class graph_data():
         self.areaIdList = dfDemandaCancer['MUNIC_RES'].drop_duplicates().tolist()
         self.hosIdList = listaHosp
 
+        dffProfQty.set_index(['CNES','DATA'],inplace=True)
+
+        self.qtdProf = {index:row['QTY'] for index, row in dffProfQty.iterrows()}
+
         self.tList = [time_delta(self.initialTime,+n) for n in range(self.durationTime)]
+
+        self.qtdTT = {index:row['QTY'] for index, row in dicAuxTT.iterrows()}
+
+        self.qtdPuraCovidReal = {index:row['QTY'] for index, row in hospDfPuroCovid.iterrows()}
 
         self.qtdCovidReal = {index:row['QTY'] for index, row in hospDfCovid.iterrows()}
 
@@ -234,6 +260,15 @@ class graph_data():
             f.close()
         with open('./data/bin/qtdCovidReal.pkl', 'wb') as f:
             pickle.dump(self.qtdCovidReal, f)
+            f.close()
+        with open('./data/bin/qtdProf.pkl', 'wb') as f:
+            pickle.dump(self.qtdProf, f)
+            f.close()
+        with open('./data/bin/qtdPuraCovidReal.pkl', 'wb') as f:
+            pickle.dump(self.qtdPuraCovidReal, f)
+            f.close()
+        with open('./data/bin/qtdTT.pkl', 'wb') as f:
+            pickle.dump(self.qtdTT, f)
             f.close()
 
         return None
@@ -528,33 +563,34 @@ class graph_data():
 
 #teste = graph_data(initialTime=20210101,durationTime=8)
 
-    def _create_bi_data_host_ocu(self):
+    def _create_bi_data_host_ocu(self,hospDf):
 
-        df = self.dffPaciente[['DT_INTER','CNES','TP_DOENCA']]
-        df['QTY'] = 1
+        cancerDf = hospDf[(hospDf['TP_PAC_AGRP']=='CANCER_CIRURGIA') | (hospDf['TP_PAC_AGRP']=='CANCER_CLINICOS')][['DATA','CNES','QTD_ACU']]
+        covidDf = hospDf[(hospDf['TP_PAC_AGRP']=='COVID_CIRURGIA') | (hospDf['TP_PAC_AGRP']=='COVID_CLINICOS')][['DATA','CNES','QTD_ACU']]
+        outrosDf = hospDf[(hospDf['TP_PAC_AGRP']=='OUTROS_CIRURGIA') | (hospDf['TP_PAC_AGRP']=='OUTROS_CLINICOS')][['DATA','CNES','QTD_ACU']]
 
-        df_outros = df[df['TP_DOENCA']=='OUTROS']
-        df_covid = df[df['TP_DOENCA']=='COVID']
-        df_cancer = df[df['TP_DOENCA']=='CANCER']
+        cancerDf = cancerDf.groupby(by=['DATA','CNES']).agg({'QTD_ACU':'sum'}).reset_index()
+        covidDf = covidDf.groupby(by=['DATA','CNES']).agg({'QTD_ACU':'sum'}).reset_index()
+        outrosDf = outrosDf.groupby(by=['DATA','CNES']).agg({'QTD_ACU':'sum'}).reset_index()
 
-        df_outros = df_outros.groupby(by=['DT_INTER','CNES']).agg({'QTY':'sum'}).reset_index()
-        df_outros.rename(columns={'QTY':'QTY_OUTROS'},inplace=True)
-        df_covid = df_covid.groupby(by=['DT_INTER','CNES']).agg({'QTY':'sum'}).reset_index()
-        df_covid.rename(columns={'QTY':'QTY_COVID'},inplace=True)
-        df_cancer = df_cancer.groupby(by=['DT_INTER','CNES']).agg({'QTY':'sum'}).reset_index()
-        df_cancer.rename(columns={'QTY':'QTY_CANCER'},inplace=True)
+        cancerDf.rename(columns={'QTD_ACU':'QTY_CANCER'},inplace=True)
+        covidDf.rename(columns={'QTD_ACU':'QTY_COVID'},inplace=True)
+        outrosDf.rename(columns={'QTD_ACU':'QTY_OUTROS'},inplace=True)
 
-        df = df[['DT_INTER','CNES']].drop_duplicates()
+        df = hospDf[['DATA','CNES']].drop_duplicates()
 
-        df = df.merge(df_outros,how='left',on=['DT_INTER','CNES'])
-        df = df.merge(df_covid,how='left',on=['DT_INTER','CNES'])
-        df = df.merge(df_cancer,how='left',on=['DT_INTER','CNES'])
+        df = df.merge(outrosDf,how='left',on=['DATA','CNES'])
+        df = df.merge(covidDf,how='left',on=['DATA','CNES'])
+        df = df.merge(cancerDf,how='left',on=['DATA','CNES'])
 
         df.fillna(0,inplace=True)
+        df['QTY_TOTAL'] = df['QTY_OUTROS'] + df['QTY_COVID'] + df['QTY_CANCER']	
+
+        df.rename(columns={'DATA':'DT_INTER'},inplace=True)
+
+        df = df[['CNES','DT_INTER','QTY_CANCER','QTY_COVID','QTY_OUTROS','QTY_TOTAL']]
 
         df = df.astype(int)
-
-        df['QTY_TOTAL'] = df['QTY_OUTROS'] + df['QTY_COVID'] + df['QTY_CANCER']
 
         df.to_csv(os.path.join(self.curDir,'data','external','ocupacao_hosp_real_BI.csv'),index=False)
 

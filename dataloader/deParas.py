@@ -212,7 +212,8 @@ def _deparaProc(row):
 
 def _load_deparas(dffPaciente:pd.DataFrame,dfdLeiPath:pd.DataFrame, dffProfission:pd.DataFrame):
 
-    curDir = os.path.dirname(os.path.realpath(__file__))
+    #curDir = os.path.dirname(os.path.realpath(__file__))
+    curDir = os.path.abspath(os.path.join(os.path.dirname( __file__ ), '..'))
 
     cboPath = os.path.join(curDir,'data','external','deParaCBO.csv')
     cidPath = os.path.join(curDir,'data','external','deParaCID.csv')

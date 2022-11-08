@@ -1,5 +1,5 @@
 import pickle
-from data_sus import graph_data
+from dataloader.data_sus import graph_data
 import os
 
 def load_data(initialTime,durationTime):
@@ -12,6 +12,9 @@ def load_data(initialTime,durationTime):
         CONCapacityrhCancer = data.CONCapacityrhCancer
         InitPatientsph  = data.InitPatientsphCancer
         releasePatientspht  = data.releasePatientsphtCancer
+        qtdProf = data.qtdProf
+        qtdPuraCovidReal = data.qtdPuraCovidReal
+        qtdTT = data.qtdTT
         LOSp = data.LOSp
         Distanceah = data.Distanceah
 
@@ -63,5 +66,20 @@ def load_data(initialTime,durationTime):
         with open('./data/bin/qtdCovidReal.pkl', 'rb') as f:
             qtdCovidReal = pickle.load(f)
             f.close()
+        with open('./data/bin/qtdProf.pkl', 'rb') as f:
+            qtdProf = pickle.load(f)
+            f.close()
+        with open('./data/bin/qtdPuraCovidReal.pkl', 'rb') as f:
+            qtdPuraCovidReal = pickle.load(f)
+            f.close()
+        with open('./data/bin/qtdTT.pkl', 'rb') as f:
+            qtdTT = pickle.load(f)
+            f.close()
 
-    return patTypeList,areaIdList,hosIdList,equipTypeList,tList,DemandCancerpat,CONCapacityrhCancer,InitPatientsph,releasePatientspht,LOSp,Distanceah,qtdCovidReal
+    dataDic = {'patTypeList':patTypeList,'areaIdList':areaIdList,'hosIdList':hosIdList,'equipTypeList':equipTypeList,'tList':tList,'DemandCancerpat':DemandCancerpat,
+                'CONCapacityrhCancer':CONCapacityrhCancer,'InitPatientsph':InitPatientsph,'releasePatientspht':releasePatientspht,
+                'LOSp':LOSp,'Distanceah':Distanceah,'qtdCovidReal':qtdCovidReal,'qtdProf':qtdProf,'qtdPuraCovidReal':qtdPuraCovidReal,
+                'qtdTT':qtdTT}
+
+    return dataDic
+    #return patTypeList,areaIdList,hosIdList,equipTypeList,tList,DemandCancerpat,CONCapacityrhCancer,InitPatientsph,releasePatientspht,LOSp,Distanceah,qtdCovidReal,qtdProf,qtdPuraCovidReal,qtdTT
