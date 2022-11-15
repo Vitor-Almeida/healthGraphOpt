@@ -11,6 +11,7 @@ commercial_solvers_bin/
 data/
 backup/
 *.xlsx
+*.xlsb
 excel/
 ############
 todo.txt

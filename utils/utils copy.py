@@ -97,7 +97,6 @@ def export_opt_data(results,model,tList,patTypeList,hosIdList,areaIdList,qtdPura
     graphList = []
     outPut = {}
     outPutHist = {}
-    #outPutHist_AJ = {}
 
     acuAlocacao = 0
 
@@ -114,12 +113,11 @@ def export_opt_data(results,model,tList,patTypeList,hosIdList,areaIdList,qtdPura
 
                     for a in areaIdList:
 
-                        if model.y[p,h,t]() > 0 and t == tList[-1]:
-                            outPut[(p,h)] = model.y[p,h,t]() #INT AQUI
+                        if model.x[p,a,h,t]() > 0 and t == tList[-1]:
+                            outPut[(p,a,h,t)] = model.x[p,a,h,t]() #INT AQUI
 
                         if model.x[p,a,h,t]() > 0:
                             outPutHist[(p,a,h,t)] = model.x[p,a,h,t]() #INT AQUI
-                            #outPutHist_AJ[(p,h,t)] = model.y[p,h,t]()
 
                         if model.x[p,a,h,t]() > 0 or qtdPuraCovidReal.get((t,h),0) > 0 or CONCapacityrht.get((p,h,t),0) > 0: 
                         #if model.x[p,a,h,t]() > 0: 
