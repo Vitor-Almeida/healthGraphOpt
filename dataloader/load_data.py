@@ -82,4 +82,3 @@ def load_data(initialTime,durationTime):
                 'qtdTT':qtdTT}
 
     return dataDic
-    #return patTypeList,areaIdList,hosIdList,equipTypeList,tList,DemandCancerpat,CONCapacityrhCancer,InitPatientsph,releasePatientspht,LOSp,Distanceah,qtdCovidReal,qtdProf,qtdPuraCovidReal,qtdTT

@@ -97,29 +97,21 @@ def export_opt_data(results,model,tList,patTypeList,hosIdList,areaIdList,qtdPura
     graphList = []
     outPut = {}
     outPutHist = {}
-    #outPutHist_AJ = {}
-
-    acuAlocacao = 0
 
     if 'ok' == str(results.Solver.status):
         #print("Total Costs = ",model.Cost())
-        #print("\nShipping Table:")
 
         for t in tList:
             for p in patTypeList:
                 for h in hosIdList:
 
-                    #if model.y[p,h,t]() > 0 and t == tList[-1]:
-                    #    outPut[(p,h)] = model.y[p,h,t]()
-
                     for a in areaIdList:
 
                         if model.y[p,h,t]() > 0 and t == tList[-1]:
-                            outPut[(p,h)] = model.y[p,h,t]() #INT AQUI
+                            outPut[(p,h)] = int(model.y[p,h,t]())
 
                         if model.x[p,a,h,t]() > 0:
-                            outPutHist[(p,a,h,t)] = model.x[p,a,h,t]() #INT AQUI
-                            #outPutHist_AJ[(p,h,t)] = model.y[p,h,t]()
+                            outPutHist[(p,a,h,t)] = int(model.x[p,a,h,t]())
 
                         if model.x[p,a,h,t]() > 0 or qtdPuraCovidReal.get((t,h),0) > 0 or CONCapacityrht.get((p,h,t),0) > 0: 
                         #if model.x[p,a,h,t]() > 0: 
@@ -131,14 +123,13 @@ def export_opt_data(results,model,tList,patTypeList,hosIdList,areaIdList,qtdPura
                                               Demandpat.get((p,a,t),0),model.y[p,h,t](),InitPatientsph.get((p,h),0),releasePatientspht.get((p,h,t),0),-LOSp.get((p),0),
                                               qtdTT.get((t,h),0), model.y[1,h,t]() + model.y[0,h,t]() ])
                             graphList.append([t,a,h,model.x[p,a,h,t]()])
-                            #print(f"At day {t} patient type {p} to hospital {h} from area {a} : {model.x[p,a,h,t]()} | NoPatients pht: {model.y[p,h,t]()} | distancia * alocação: {round(Distanceah.get((a,h),0)*model.x[p,a,h,t](),2)} | custo Infecção : {round(qtdCovidRealth.get((t,h),0)*model.x[p,a,h,t]()*FATOR_ATAQUE,2)} |capacity: {CONCapacityrht.get((p,h,t),0)} | demanda: {Demandpat.get((p,a,t),0)}")
 
         df = pd.DataFrame(debugList,columns=['Wdist','Winf','p','a','h','t',
                                             'x','y','qtdCovid','qtdProf',
                                             'custoDistancia','custoInfeccao','capacidadePH',
                                             'demandaPAT','noPatPHT','initPatPH','releasedPHT','losP',
                                             'qtyOutrosHT','qtyCancerHT']) 
-        df.to_csv(f'./data/processed/debug_D{Wdist}_I{Winf}_S{split}.csv',index=False)
+        df.to_csv(f'./data/processed/integer/debug_D{Wdist}_I{Winf}_S{split}.csv',index=False)
         graph = pd.DataFrame(graphList,columns=['Timestamps','Source','Target','Weight'])
         graph.to_csv(f'./data/processed/edgeGraph/edgeGraphSimullated_D{Wdist}_I{Winf}_S{split}.csv',index=False)
     else:

@@ -23,9 +23,7 @@ def getsom(dataDic,name):
 def aumentar_cap(dataDic,name):
 
     for n in dataDic[name]:
-        dataDic[name][n] = 444444
-
-    #dataDic[name][1,2651394,20210407] = 6
+        dataDic[name][n] = 9999999
 
     return dataDic
 
@@ -45,8 +43,6 @@ def splitDicByDate(dataDic,allTime):
 
     for n in allTime:
         n.sort()
-
-    dataListDic = []
 
     for splits in allTime:
         for n,keyName in enumerate(dataToFilter):
@@ -69,31 +65,14 @@ def splitDicByDate(dataDic,allTime):
 
 def main():
 
-    initialTime = 20210401
+    initialTime = 20210301
     durationTime = 120
-    splitDiv = 14
+    splitDiv = 7 #6
 
     dataDic = load_data(initialTime,durationTime)
 
-    ############# QUICK FIXXXX ######################
-    #dataDic = zerar_dic(dataDic,'releasePatientspht')
-    #dataDic = aumentar_cap(dataDic,'CONCapacityrhCancer')
-    #print(getsom(dataDic,'InitPatientsph'))
-    ##################################################
-
     dataDic['tList'].sort()
     allTime = list(split(dataDic['tList'],splitDiv))
-    newAllTime = []
-    
-
-    #for idx,n in enumerate(allTime):
-    #    if idx != 0:
-    #        prev = allTime[idx-1][-1]
-    #        newAllTime.append([prev]+n)
-    #    else:
-    #        newAllTime.append(n)
-    #allTime = newAllTime.copy()
-
     weights = [1.0,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2,0.1,0.0]
 
     initPat = dataDic['InitPatientsph'].copy()
@@ -109,10 +88,7 @@ def main():
                 outPut,outPutHist,normList = run_simulation(allTime[nToSplit][0],dDic,weight,nToSplit,outPutHistConcat,normList)
                 outPutHistConcat = outPutHist.copy()
             else:
-                #dDic = zerar_dic(dDic,'InitPatientsph')
-                #dDic['xContinuidade'] = outPut.copy()
                 dDic['InitPatientsph'] = outPut.copy()
-                #dDic['InitPatientsph'] = outPut.copy()
                 outPut,outPutHist,normList = run_simulation(allTime[nToSplit][0],dDic,weight,nToSplit,outPutHistConcat,normList)
 
                 for key in outPutHist:

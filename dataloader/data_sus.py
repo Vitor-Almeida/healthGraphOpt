@@ -198,8 +198,10 @@ class graph_data():
         self.hosIdList = listaHosp
 
         dffProfQty.set_index(['CNES','DATA'],inplace=True)
+        dffProfHrs.set_index(['CNES','DATA'],inplace=True)
 
-        self.qtdProf = {index:row['QTY'] for index, row in dffProfQty.iterrows()}
+        #self.qtdProf = {index:row['QTY'] for index, row in dffProfQty.iterrows()}
+        self.qtdProf = {index:row['QTY'] for index, row in dffProfHrs.iterrows()} #<--- nao tem variação vs o "real", teria q fazer, ou, pega só medico oncologista.
 
         self.tList = [time_delta(self.initialTime,+n) for n in range(self.durationTime)]
 
@@ -494,6 +496,10 @@ class graph_data():
         dffProfHrs['QTY'] = dffProfHrs['HORAS']*dffProfHrs['CBO']
         dffProfHrs = dffProfHrs.groupby(by=['CNES','DATA']).agg({'QTY':'sum'}).reset_index()
 
+        dffProfHrs['QTY'] = dffProfHrs['QTY'] / 5
+        dffProfHrs['QTY'] = dffProfHrs['QTY'].apply(np.ceil)
+        dffProfHrs['QTY'] = dffProfHrs['QTY'].astype(int)
+
         return dffProfQty, dffProfHrs
 
     def _process_patDf(self):
@@ -560,8 +566,6 @@ class graph_data():
         nodeDf.to_csv('/mnt/d/Projetos/healthgraphopt/nodeList.csv',index=False)
 
         return None
-
-#teste = graph_data(initialTime=20210101,durationTime=8)
 
     def _create_bi_data_host_ocu(self,hospDf):
 

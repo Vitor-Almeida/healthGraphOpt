@@ -1,23 +1,6 @@
-<!-- Improved compatibility of back to top link: See: https://github.com/othneildrew/Best-README-Template/pull/73 -->
 <a name="readme-top"></a>
-<!--
-*** Thanks for checking out the Best-README-Template. If you have a suggestion
-*** that would make this better, please fork the repo and create a pull request
-*** or simply open an issue with the tag "enhancement".
-*** Don't forget to give the project a star!
-*** Thanks again! Now go create something AMAZING! :D
--->
 
-<!-- PROJECT SHIELDS -->
-<!--
-*** I'm using markdown "reference style" links for readability.
-*** Reference links are enclosed in brackets [ ] instead of parentheses ( ).
-*** See the bottom of this document for the declaration of the reference variables
-*** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
-*** https://www.markdownguide.org/basic-syntax/#reference-style-links
--->
 [![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
@@ -33,117 +16,130 @@
 <h3 align="center">Optimal Allocation of Cancer patients during a pandemic</h3>
 
   <p align="center">
-    More than 50% of all Cancer patients were unable to receive care during the SARS-CoV-2 pandemic because of crowded beds, high risk of contamination or long travelling distances to get treatment. This project aims to optimally find the best allocation to these patients by minimizing travelled distance and contamination risk. Several constrains to the model were used, like: available equipment, beds, and medical staff per Hospital. 
+  More than 50% of all Cancer patients were unable to receive care during the SARS-CoV-2 pandemic [1]. Due to crowded hospitals, high risk of contamination or long travelling distances. This project aims to optimally find the best allocation of these patients by minimizing travelled distance and contamination risk. The problem is modeled using <b>integer linear programming</b> and a <b>multi-objective function</b> using the weighted method.
     <br />
-    <a href="https://github.com/Vitor-Almeida/healthGraphOpt"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
-    <a href="https://github.com/Vitor-Almeida/healthGraphOpt">View Demo</a>
-    ·
     <a href="https://github.com/Vitor-Almeida/healthGraphOpt/issues">Report Bug</a>
+    ·
+    <a href="https://app.powerbi.com/view?r=eyJrIjoiMWY4ZWZjYTUtODgxNi00ZDYzLWFkMDQtY2MyZDg3ZmJiOWI2IiwidCI6IjJiM2NjNTIzLWFmMzItNDU5Mi1hN2VhLWZkNTRlMmRkNTU3ZCJ9">Power BI Dashboard</a>
     ·
     <a href="https://github.com/Vitor-Almeida/healthGraphOpt/issues">Request Feature</a>
   </p>
 </div>
 
-
-
-<!-- TABLE OF CONTENTS -->
-<details>
-  <summary>Table of Contents</summary>
-  <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
-      <ul>
-        <li><a href="#built-with">Built With</a></li>
-      </ul>
-    </li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
-      </ul>
-    </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgments">Acknowledgments</a></li>
-  </ol>
-</details>
-
-
-
 <!-- ABOUT THE PROJECT -->
-## About The Project
+## About The Data
 
-[![Product Name Screen Shot][product-screenshot]](https://example.com)
+<!-- Colocar uma imagem de grafo aqui:
+[![Product Name Screen Shot][product-screenshot]](https://app.powerbi.com/view?r=eyJrIjoiMWY4ZWZjYTUtODgxNi00ZDYzLWFkMDQtY2MyZDg3ZmJiOWI2IiwidCI6IjJiM2NjNTIzLWFmMzItNDU5Mi1hN2VhLWZkNTRlMmRkNTU3ZCJ9)
+-->
 
-Here's a blank template to get started: To avoid retyping too much info. Do a search and replace with your text editor for the following: `Vitor-Almeida`, `healthGraphOpt`, `twitter_handle`, `linkedin_username`, `email_client`, `email`, `project_title`, `project_description`
+This project uses real data from [DataSUS](https://datasus.saude.gov.br/). It contains all medical procedures performed by doctors in Brazil's public health system. The database granularity goes all the way to the Patient level.
+
+The following informations were used from the Database:
+* Local of origin of the patient.
+* Which health unit the procedure was realized.
+* Patient medical diagnostic .
+* Which medical procedure was performed (surgical, clinical etc.).
+* Day of the patient hospitalization and day of discharge.
+
+The database also has information about all the country's health units. 
+
+* Number of available beds
+* Number of equipment and type of equipment
+* Number of doctors and its specializations.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 ### Built With
-
 * [![Python.py][Python.py]][Python-url]
 * [![Pandas.py][Pandas.py]][Pandas-url]
 * [![Numpy.py][Numpy.py]][Numpy-url]
 * [![PowerBI][PowerBI]][PowerBI-url]
+* [https://github.com/Pyomo/pyomo](https://github.com/Pyomo/pyomo)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- GETTING STARTED -->
-## Getting Started
+## The problem
 
-This is an example of how you may give instructions on setting up your project locally.
-To get a local copy up and running follow these simple example steps.
+[![Product Name Screen Shot][product-screenshot]](https://app.powerbi.com/view?r=eyJrIjoiMWY4ZWZjYTUtODgxNi00ZDYzLWFkMDQtY2MyZDg3ZmJiOWI2IiwidCI6IjJiM2NjNTIzLWFmMzItNDU5Mi1hN2VhLWZkNTRlMmRkNTU3ZCJ9)
 
-### Prerequisites
+During the first and second wave of Covid, we can cleary see a decline in Cancer patients admissions. -48% we comparing the same period vs LY.
 
-This is an example of how to list things you need to use the software and how to install them.
-* npm
+fix:
+We can also see a node concentration of countryside patients to only wanting to get treatment at the capital.1
+
+## The model
+
+### Variables
   ```sh
-  npm install npm@latest -g
+  SETS:
+  * H->	hospitals
+  * A->	population areas (demand points)
+  * T->	periods in the current planning horizon
+  * R-> type of bed
+  * P-> patient type
+  * Sr-> Set of patient type requiring bed type R
   ```
 
-### Installation
+  ```sh
+  PARAMETERS
+  * ar-> attack rate (fixed)
+  * Distance(ah)-> distance from population area a to hospital h
+  * Demand(pat)-> demand of patient type p from area a on day t
+  * CONCapacity(rh)-> initial capacity of resource r in hospital h
+  * LOS(p)-> length of stay (i.e. how many days) for patient type p
+  * InitPatients(ph)-> number of patient type p at hospital h prior to the planning horizon
+  * ReleasedPatients(pht)-> number of patient type p at hospital h prior to the planning horizon who are released on day t
+  * StaffHrs(p)-> average number of hours per day that a medical staff attends to a patient of type p
+  * StaffCap(h,t)-> number of available hours per day of all medical staff on day t at hospital h
+  ```
 
-1. Get a free API Key at [https://example.com](https://example.com)
-2. Clone the repo
+  ```sh
+  INTERMEDIATE VARIABLES:
+  NoPatients(pht)-> number of patient type p at hospital h on day t
+  NoCovidPatients(ht)-> number of covid patients at hospital h on day t
+  DECISION VARIABLE:
+  X(paht)-> number of patient type p from area a assigned to hospital h on day t
+  ```
+
+### Objective Function
+
+**Minimization of the total travel distance between patients and healthcare facilities**
+$$Min \sum_p\sum_a\sum_h\sum_tX_{paht} \ast Distance_{ah}$$
+
+**Minimization of infection risk**
+$$Min \sum_t\sum_h( \sum_p\sum_aX_{paht} + NoCovidPatients_{th}) \ast ar$$
+
+### Constrains
+
+$$\sum_hX_{paht} = Demand_{pat}$$
+
+$$NoPatients_{ph1} = InitPatients_{ph} + \sum_aX_{pah1}$$
+
+$$NoPatients_{pht} = NoPatients_{pht-1} + \sum_aX_{paht} - \sum_aX_{pah(t-LOS_{p})} - ReleasedPatients{pht}$$
+
+$$\sum_{p\in S_{r}}NoPatients_{pht} \leqslant CONCapacity_{rh}$$
+
+$$\sum_{p}(NoPatients_{pht}\ast StaffHrs_{p}) \leqslant StaffCap_{ht}$$
+
+$$X_{paht} \geqslant 0 \hspace{1cm} \forall p,a,h,t$$
+
+### Results
+
+1. G
+2. C
    ```sh
-   git clone https://github.com/Vitor-Almeida/healthGraphOpt.git
+   1
    ```
-3. Install NPM packages
+3. I
    ```sh
-   npm install
+   1
    ```
-4. Enter your API in `config.js`
+4. E
    ```js
-   const API_KEY = 'ENTER YOUR API';
+   1
    ```
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- USAGE EXAMPLES -->
-## Usage
-
-Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources.
-
-_For more examples, please refer to the [Documentation](https://example.com)_
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-<!-- ROADMAP -->
-## Roadmap
-
-- [ ] Feature 1
-- [ ] Feature 2
-- [ ] Feature 3
-    - [ ] Nested Feature
-
-See the [open issues](https://github.com/Vitor-Almeida/healthGraphOpt/issues) for a full list of proposed features (and known issues).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

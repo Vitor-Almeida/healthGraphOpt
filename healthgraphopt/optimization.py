@@ -32,6 +32,11 @@ def export_diccsv(df,name):
         dfTmp[['p','a','h','t']] = pd.DataFrame(dfTmp['index'].tolist(),index=dfTmp.index)
         dfTmp.drop(columns=['index'],inplace=True)
         dfTmp.to_csv(f'{name}.csv',index=False)
+    if name == 'qtdProf' and df != {}:
+        dfTmp = pd.DataFrame.from_dict(df,orient='index').reset_index()
+        dfTmp[['h','t']] = pd.DataFrame(dfTmp['index'].tolist(),index=dfTmp.index)
+        dfTmp.drop(columns=['index'],inplace=True)
+        dfTmp.to_csv(f'{name}.csv',index=False)
 
 
     return None
@@ -49,6 +54,8 @@ def run_simulation(initialTime,dataDic,weight,split,outPutHistConcat,normList):
     qtdPuraCovidReal = dataDic['qtdPuraCovidReal']
     qtdTT = dataDic['qtdTT']
 
+    hrsDiaPat = {0:1,1:2} #paciente clinico 1h por dia, paciente cirurgico 2h por dia
+
     patTypeList = dataDic['patTypeList']
     areaIdList = dataDic['areaIdList']
     hosIdList = dataDic['hosIdList']
@@ -58,18 +65,18 @@ def run_simulation(initialTime,dataDic,weight,split,outPutHistConcat,normList):
 
     xContinuidade = {}
 
+    export_diccsv(qtdProf,'qtdProf')
+
     #if split > 0:
     #    xContinuidade = dataDic['xContinuidade']
     #    export_diccsv(xContinuidade,'xContinuidade')
-        
-
-    export_diccsv(releasePatientspht,'releasePatientspht')
-    export_diccsv(outPutHistConcat,'outPutHist')
-    export_diccsv(Demandpat,'Demandpat')
-    export_diccsv(CONCapacityrht,'CONCapacityrht')
-    export_diccsv(InitPatientsph,'InitPatientsph')
+    #export_diccsv(releasePatientspht,'releasePatientspht')
+    #export_diccsv(outPutHistConcat,'outPutHist')
+    #export_diccsv(Demandpat,'Demandpat')
+    #export_diccsv(CONCapacityrht,'CONCapacityrht')
+    #export_diccsv(InitPatientsph,'InitPatientsph')
     
-    testing(CONCapacityrht,InitPatientsph,releasePatientspht,initialTime,xContinuidade,split)
+    #testing(CONCapacityrht,InitPatientsph,releasePatientspht,initialTime,xContinuidade,split)
 
     #totalVars = len(patTypeList) * len(areaIdList) * len(hosIdList) * len(tList)
     #print(totalVars)
@@ -79,30 +86,37 @@ def run_simulation(initialTime,dataDic,weight,split,outPutHistConcat,normList):
 
     FATOR_ATAQUE = 0.52
 
-    #fix: redução da capacidade quando existe alocação 
+    #fix: redução da capacidade por causa do covid, quando existe alocação no t=0
     ##############################################################################################################################################################
+    aumentoTotalCap = 0
+    aumentoTotalCapHoras = 0
     for p in patTypeList:
         for h in hosIdList:
             for t in tList:
-
-                #if p==0 and h==2499363 and t == 20210604:
-                #    print('aqu')
 
                 initPat = InitPatientsph.get((p,h),0) - sum([outPutHistConcat.get((p,a,h,time_delta(t,-LOSp.get((p),0))),0) for a in areaIdList]) \
                                                - releasePatientspht.get((p,h,t),0)
                 cap = CONCapacityrht.get((p,h,t),0)
 
-                if initPat < 0:
-                    print('negativo')
+                capHoras = qtdProf.get((h,t),0)
 
                 if initPat > cap:
-                    print('ajuste_existe')
+                    print('Aumento da capacidade: ',initPat - cap)
+                    aumentoTotalCap = aumentoTotalCap + (initPat - cap)
                     CONCapacityrht[p,h,t] = initPat
+
+                if initPat * hrsDiaPat[p] > capHoras:
+                    print('Aumento da capacidade Horas: ',initPat * hrsDiaPat[p] - cap)
+                    qtdProf[h,t] = initPat * hrsDiaPat[p]
+                    aumentoTotalCapHoras = aumentoTotalCapHoras + (initPat * hrsDiaPat[p] - capHoras)
+    
+    print(f'Aumento total da capacidade: ',aumentoTotalCap)
+    print(f'Aumento total da capacidade horas: ',aumentoTotalCapHoras)
     #############################################################################################################################################################
 
     # Step 2: Define the decision 
-    model.x = pyo.Var(patTypeList, areaIdList, hosIdList, tList, domain = pyo.NonNegativeReals) # (6)  #NonNegativeIntegers
-    model.y = pyo.Var(patTypeList, hosIdList, tList, domain = pyo.NonNegativeReals) #NonNegativeReals
+    model.x = pyo.Var(patTypeList, areaIdList, hosIdList, tList, domain = pyo.NonNegativeIntegers) # (6)  #NonNegativeIntegers
+    model.y = pyo.Var(patTypeList, hosIdList, tList, domain = pyo.NonNegativeIntegers) #NonNegativeReals
 
     distanceExpr = sum([Distanceah[a,h]*model.x[p,a,h,t] for p in patTypeList for a in areaIdList for h in hosIdList for t in tList])
     infectionExpr = sum([qtdCovidRealth.get((t,h),0)*model.x[p,a,h,t]*FATOR_ATAQUE for p in patTypeList for a in areaIdList for h in hosIdList for t in tList])
@@ -111,14 +125,6 @@ def run_simulation(initialTime,dataDic,weight,split,outPutHistConcat,normList):
     model.Cost = pyo.Objective(
         expr = distanceExpr,
         sense = pyo.minimize)
-
-    # Step 3.5: Continuidade:
-    #if split > 0:
-    #    model.xContinuidade = pyo.ConstraintList() #(2) do artigo, quantidade de solucoes por trecho nao pode ser maior que a demanda.
-    #    for p in patTypeList:
-    #        for a in areaIdList:
-    #            for h in hosIdList:
-    #                model.xContinuidade.add(model.x[p,a,h,tList[0]] == xContinuidade.get((p,a,h,tList[0]),0) )
 
     # Step 4: Constraints
     model.demand = pyo.ConstraintList() #(2) do artigo, quantidade de solucoes por trecho nao pode ser maior que a demanda.
@@ -146,13 +152,18 @@ def run_simulation(initialTime,dataDic,weight,split,outPutHistConcat,normList):
                         model.noPattN.add(model.y[p,h,t] == model.y[p,h,time_delta(t,-1)] + sum([model.x[p,a,h,t] for a in areaIdList]) - \
                         sum([outPutHistConcat.get((p,a,h,time_delta(t,-LOSp.get((p),0))),0) for a in areaIdList]) - \
                         releasePatientspht.get((p,h,t),0))
-                        #GUARDAR O X HISTORICO E COLOCAR PRA ACESSAR AQUI
 
     model.equipLimit = pyo.ConstraintList() #(5) do artigo, quantidade de pacientes nao pode ser maior que a quantidade de equipamentos.
     for p in patTypeList: 
         for h in hosIdList:
             for t in tList:
                 model.equipLimit.add(model.y[p,h,t] <= CONCapacityrht.get((p,h,t),0))
+
+    model.staffHrs = pyo.ConstraintList() #(5) do artigo, quantidade de pacientes nao pode ser maior que a quantidade de horas dos médicos.
+    for p in patTypeList: 
+        for h in hosIdList:
+            for t in tList:
+                model.staffHrs.add(model.y[p,h,t] * hrsDiaPat[p] <= qtdProf.get((h,t),0))
 
     if split == 0:
         print('Getting best and worst point of separated solution: ',datetime.now().strftime("%H:%M:%S"))
